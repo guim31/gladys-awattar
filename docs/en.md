@@ -1,61 +1,178 @@
-# Demo Devices Template
+# aWATTar
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+The hourly prices of the [aWATTar HOURLY](https://www.awattar.at/tariffs/hourly)
+dynamic electricity tariff, in Germany and Austria, in Gladys: the price of the current
+hour, the cheapest hours of the day, a price chart for today and tomorrow, and scene
+triggers to run your appliances when electricity is cheapest.
 
-## What you get
+This integration is not affiliated with aWATTar or tado°. It reads the public market
+data of aWATTar, tested against the live API, but it was developed without an aWATTar
+contract: feedback welcome.
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+## Overview
+
+aWATTar publishes, without account or key, the **hourly EPEX Spot day-ahead prices**
+of Germany (DE-LU zone) and Austria (AT zone). The integration turns them into the
+**aWATTar HOURLY price** of your country: not just the raw market price, but the
+market price plus the aWATTar components (see _Price formula_), with or without VAT.
+The raw market price of the current hour stays available on its own feature.
+
+Tomorrow's prices are published around 14:00. Every time is shown in Central European
+Time (Berlin and Vienna), and a day runs from midnight to midnight in that time,
+whatever the timezone of your Gladys.
+
+aWATTar Germany is now **tado° Energy**: the API and the tariff stay the same.
+
+## Requirements
+
+- Gladys Assistant 5.3.0 or later.
+- Internet access from Gladys to `api.awattar.de` or `api.awattar.at`.
+- Nothing else: no account, no API key, no hardware.
+
+## Installation
+
+1. In Gladys, open **Integrations → Install from GitHub** and enter
+   `https://github.com/guim31/gladys-awattar`.
+2. Open the integration, pick your country, check the tariff fields, save.
+3. Open the **Discovery** tab and add the **aWATTar Deutschland** or **aWATTar
+   Österreich** device.
+4. On a dashboard, add the **Electricity prices** widget.
 
 ## Configuration
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+| Field                         | Default       | What it does                                                             |
+| ----------------------------- | ------------- | ------------------------------------------------------------------------ |
+| Country                       | Germany       | Market and tariff: Germany or Austria. Another country is another device |
+| Include VAT                   | Yes           | Prices with the VAT rate below                                           |
+| Surcharge (ct/kWh, net)       | Country value | Added to every hour before VAT. Empty: 1.5 in Austria, 0 in Germany      |
+| Markup (% of market price)    | 0             | A percentage of the market price, always added as a cost. Empty: 0       |
+| VAT rate (%)                  | Country value | Empty: 19 in Germany, 20 in Austria                                      |
+| Language of the feature names | French        | Used when the device is added: the names do not change afterwards        |
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+Decimals accept a dot or a comma (`1,5`). An unreadable value falls back to the value of
+the country. To see your **full price per kWh**, add your grid fees, levies and taxes
+per kWh (net) to the surcharge.
 
-## Actions
+The **Refresh the prices now** button reads aWATTar at once and shows what it
+publishes for today and tomorrow: use it to check the connection.
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+## Price formula
 
-## Scenes
+For every hour:
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+`price = (market + |market| × markup % + surcharge) × (1 + VAT %)`
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+- **Austria**: aWATTar publishes EPEX Spot AT + 1.5 ct/kWh, plus 20 % VAT on the
+  whole. aWATTar's own examples: 5.00 ct gives 7.80 ct, 0.00 ct gives 1.80 ct,
+  −5.00 ct gives −4.20 ct. These are the defaults.
+- **Germany**: tado° Energy publishes the EPEX Spot DE-LU price "plus further
+  procurement costs, taxes, levies and grid fees", regional and not given as one
+  figure. The default surcharge is 0: enter the per-kWh costs of your contract.
+- Not included by default: grid fees, levies, the fixed monthly fee (Austria 5.75 €,
+  Germany 4.58 € plus metering).
 
-## Dashboard
+## The aWATTar device
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+One device per country, read-only, refreshed by the integration itself every minute
+(the prices are read from aWATTar once an hour).
+
+| Feature                       | Type    | Value                                                               |
+| ----------------------------- | ------- | ------------------------------------------------------------------- |
+| Current price (€/kWh)         | Price   | aWATTar HOURLY price of the current hour                            |
+| Next hour price (€/kWh)       | Price   | Price of the next hour (after 23:00, once tomorrow is known)        |
+| Average price today (€/kWh)   | Price   | Average of the hours of the day                                     |
+| Lowest price today (€/kWh)    | Price   | Cheapest hour of the day                                            |
+| Highest price today (€/kWh)   | Price   | Most expensive hour of the day                                      |
+| Cheapest hour today           | Text    | Start of the cheapest hour, `HH:MM`                                 |
+| Most expensive hour today     | Text    | Start of the most expensive hour, `HH:MM`                           |
+| Hour rank (1 = cheapest)      | Counter | Rank of the current hour in the day, 1 to 24 (23 or 25 on DST days) |
+| Market price now (€/kWh, net) | Price   | EPEX Spot price of the current hour, without anything added         |
+
+Gladys has no €/kWh unit: the prices show in euros, the name says per what. When a
+feature is the only one of its kind on the device, the dashboard shows the generic
+label of the kind ("Counter (integer)") instead of its name.
+
+## Dashboard widget
+
+**Electricity prices** shows the price shown (with or without VAT), three tiles (now,
+next hour, today's average), the chart of today and tomorrow with the cheapest and
+the most expensive hour of each day marked and a line at the current time, then the
+cheapest hour of today and tomorrow, tomorrow's average and the market price of the
+current hour. Until tomorrow's prices are published, it says that they are not
+published yet.
+
+## Scene triggers
+
+Three triggers, in the scene editor under **aWATTar**. They compare the prices of the
+configuration (aWATTar HOURLY price, with or without VAT).
+
+### Cheapest hours of the day begin
+
+Fires once a day, at the start of the cheapest run of consecutive hours of the day.
+Pick the length of the run: 1 to 6 or 8 hours (1 hour is the cheapest hour of the
+day). Variables: average price of the run, start and end time.
+
+### One of the cheapest hours begins
+
+Fires at the start of each of the N cheapest hours of the day, consecutive or not.
+Pick N: 1 to 6, 8, 10 or 12. Variables: price of the hour, its rank, start and end
+time.
+
+### The price drops below a threshold
+
+Fires at the start of an hour whose price is below the threshold when the hour before
+was not: once per cheap run. Pick the threshold: 0 ct/kWh (negative prices) to 40
+ct/kWh by steps of 5. Variables: price of the hour, start time, and the end of the
+cheap run as far as the known prices tell. Unlike a condition on the **Current
+price** feature, it says how long the run lasts, and it works without the device.
+
+All triggers fire when the hour begins, at most 10 minutes late (Gladys or the
+integration restarting): an hour that began longer ago fires nothing.
+
+## Scene examples
+
+- **Dishwasher in the cheapest 3 hours**: trigger _Cheapest hours of the day begin_,
+  3 hours → turn on the dishwasher plug.
+- **Hot water boiler on the 4 cheapest hours**: trigger _One of the cheapest hours
+  begins_, 4 → turn on the boiler; a second scene on _Hour rank_ greater than 4 →
+  turn it off.
+- **Negative price**: trigger _The price drops below a threshold_, 0 ct/kWh → turn on
+  the boiler and send "Electricity is free until {end_time}".
+
+## Refresh and API usage
+
+aWATTar asks for fair use of its free API: 100 requests a day at most. The
+integration stays well below:
+
+- one request an hour, for today and tomorrow together;
+- from 13:00, again every 15 minutes until tomorrow's prices are published, then
+  hourly again (about 60 requests a day at worst);
+- after a failure, retries after 5, 10, 20, 40 then 60 minutes; the last known prices
+  stay in use meanwhile (prices are known a day ahead).
+
+The states are published only when they change, plus a reminder every 6 hours.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **"aWATTar cannot be reached"** in the Configuration screen: Gladys has no internet
+  access, or aWATTar is down. The last known prices stay in use; press **Refresh the
+  prices now** to try again.
+- **"publishes no price for today yet"**: aWATTar answered with no price for the day,
+  a publication incident. The integration tries again every 15 minutes.
+- **No value on the device**: add the device from the Discovery tab first; its values
+  arrive at once.
+- **Changed the country**: add the new device from the Discovery tab; the old one gets
+  no more values and can be deleted.
+- **Debug logs**: set `LOG_LEVEL=debug` on the container to see every refresh.
+
+## Limitations
+
+- Developed without an aWATTar contract: the formula follows what aWATTar publishes,
+  not an invoice. Compare it with your bill and adjust the fields.
+- Hourly prices, as the HOURLY tariff bills them. Should aWATTar publish quarter hours,
+  they are averaged back to the hour.
+- No login: no consumption, no costs, no personal prices.
+- The triggers look at the current day only: a cheapest run never spans midnight.
+- Read-only: nothing is controlled by the integration itself.
+- The feature names are set when the device is added; changing the language later
+  does not rename them.
