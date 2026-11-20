@@ -11,7 +11,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createLogger } from '@gladysassistant/integration-sdk';
 
-const logger = createLogger({ name: 'frank-energie:ledger' });
+const logger = createLogger({ name: 'awattar:ledger' });
 const FILE = 'scene-events.json';
 
 /** @param {string} dataDir */

@@ -79,6 +79,21 @@ export function createMarket({ fetch = globalThis.fetch, now = () => Date.now() 
     },
 
     /**
+     * Whether the prices of `country` were read successfully within `ms`: a
+     * scene looping on the refresh action must not exceed the fair use.
+     * @param {string} country
+     * @param {number} ms
+     */
+    freshFor(country, ms) {
+      return (
+        data.country === country &&
+        failures === 0 &&
+        lastSuccessAt !== null &&
+        now() - lastSuccessAt < ms
+      );
+    },
+
+    /**
      * @param {string} country
      * @returns {string | null} why a refresh is due now, or null
      */

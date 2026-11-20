@@ -65,6 +65,8 @@ test/                             node --test, against the SDK's fake Gladys and
   with a comma, empty = value of the country): a `number` field has no `step`.
 - The device id is built on the country: another country is another device; the device of
   the old country gets no more states.
+- The refresh action reuses prices read less than a minute ago (`market.freshFor`): a scene
+  looping on it must not break the fair use.
 - Germany and Austria share Central European Time: one market clock, `Europe/Berlin`.
 - The threshold trigger fires on a crossing only (the hour before known and above): no event
   for the first hour of the data.

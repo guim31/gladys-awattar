@@ -130,6 +130,7 @@ test('a new day without its prices asks again every 15 minutes, not hourly', asy
 
 test('the "Refresh now" action reads aWATTar and reports what it got', async () => {
   const world = await createWorld();
+  world.clock.advance(MINUTE);
   const ack = await world.gladys.fake.action('refresh');
   assert.equal(ack.success, true);
   assert.equal(world.api.count(), 2);
@@ -138,10 +139,23 @@ test('the "Refresh now" action reads aWATTar and reports what it got', async () 
   assert.match(ack.data.message.fr, /Prix actuel : 0,035 €\/kWh \(marché : 0,029 €\/kWh HT\)/);
 
   world.api.down = true;
+  world.clock.advance(MINUTE);
   const failed = await world.gladys.fake.action('refresh');
   assert.equal(failed.success, false);
   assert.match(failed.error.de, /nicht erreichbar \(aWATTar unreachable \(ENOTFOUND\)\)/);
   assert.match(failed.error.es, /No se puede acceder a aWATTar/);
+});
+
+test('the action repeated within a minute sends no new request (fair use)', async () => {
+  const world = await createWorld();
+  for (let i = 0; i < 5; i += 1) {
+    const ack = await world.gladys.fake.action('refresh');
+    assert.equal(ack.success, true);
+  }
+  assert.equal(world.api.count(), 1);
+  world.clock.advance(MINUTE);
+  await world.gladys.fake.action('refresh');
+  assert.equal(world.api.count(), 2);
 });
 
 test('the states refresh on the container timer alone, without onPoll', async (t) => {

@@ -261,7 +261,8 @@ export function createApp(gladys, options = {}) {
   gladys.onAction('refresh', async () => {
     logger.info('Action refresh <- reading the prices now');
     try {
-      await cycle({ forceRefresh: true });
+      // Read less than a minute ago: the same answer, no new request.
+      await cycle({ forceRefresh: !market.freshFor(config.country, MINUTE) });
     } catch (err) {
       throw new ActionFailure(MESSAGES.refreshFailed(err.message));
     }

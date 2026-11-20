@@ -108,6 +108,7 @@ test('every manifest action has a handler that answers, in red on a failure', as
     assert.equal(ack.success, true, `action ${key}: ${ack.error}`);
   }
   world.api.down = true;
+  world.clock.advance(60 * 1000);
   const failed = await world.gladys.fake.action('refresh');
   assert.equal(failed.success, false);
   assert.match(failed.error.fr, /aWATTar est injoignable/);
