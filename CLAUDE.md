@@ -16,8 +16,8 @@ its only runtime dependency. It started from the official JavaScript template.
 ```bash
 npm install
 npm test                                  # node --test, the built-in runner
-node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test test/device.test.js           # one file
+node --test --test-name-pattern "Austria" # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
@@ -31,18 +31,45 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
-src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
-gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+index.js                          SDK wiring only (src/app.js registers the handlers before connect())
+src/app.js                        refresh cycle (container timer, onPoll fallback), states, scene events, action, widget
+src/awattar.js                    client of the public market data API (api.awattar.de / .at)
+src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults), tariff of each country, price formula
+src/market.js                     known prices and refresh policy (fair use: 100 requests a day)
+src/prices.js                     pure computations on hourly slots (current, rank, cheapest window)
+src/device.js                     the device of the country and its states
+src/triggers.js                   scene events of an hour that begins
+src/widget.js                     the "Electricity prices" widget
+src/ledger.js                     hours whose scene events are out, kept in /data
+src/time.js                       the Central European market clock
+src/i18n.js                       every user-facing text, en/fr/de/es
+gladys-assistant-integration.json manifest: name, config_schema, actions, triggers, widget
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys
+test/                             node --test, against the SDK's fake Gladys and a fake API serving real fixtures
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
+
+## aWATTar
+
+- API: `GET https://api.awattar.{de,at}/v1/marketdata?start=<ms>&end=<ms>`, no key, EUR/MWh
+  VAT excluded, hourly (`end - start = 3600000`, checked on 20/11/2026). Hours not published
+  yet are simply missing (a future range answers `data: []`); a bad parameter answers HTTP 500
+  `{ error: { message } }`. Fair use: 100 requests a day. One request covers 23:00 the day
+  before to the day after tomorrow 00:00: the hour before midnight tells whether 00:00
+  crosses a price threshold.
+- Tariff (checked 20/11/2026): Austria, awattar.at/tariffs/hourly, EPEX Spot AT + 1.5 ct/kWh,
+  20 % VAT on the whole, negative prices stay negative (their example: -5.00 -> -4.20 ct).
+  Germany is now tado° Energy (awattar.de redirects to energy.tado.com, a JS page: render it
+  headless to read it): spot "plus further procurement costs, taxes, levies, grid fees", no
+  single published figure, hence a default surcharge of 0. Tariff fields are `string` (decimal
+  with a comma, empty = value of the country): a `number` field has no `step`.
+- The device id is built on the country: another country is another device; the device of
+  the old country gets no more states.
+- The refresh action reuses prices read less than a minute ago (`market.freshFor`): a scene
+  looping on it must not break the fair use.
+- Germany and Austria share Central European Time: one market clock, `Europe/Berlin`.
+- The threshold trigger fires on a crossing only (the hour before known and above): no event
+  for the first hour of the data.
 
 ## Rules
 
@@ -78,8 +105,8 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** is in four languages (en, fr, de, es): action messages,
+  manifest texts, and `docs/*.md`, kept in sync.
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
