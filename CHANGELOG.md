@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-20
+
 ### Added
 
 - The aWATTar HOURLY prices of Germany or Austria, from the public aWATTar API (no
@@ -25,3 +27,6 @@ the notes of the version's GitHub Release.
   begins" and "The price drops below a threshold".
 - A "Refresh the prices now" action, and texts in English, French, German and
   Spanish. Requires Gladys 5.3.0 or later.
+
+[Unreleased]: https://github.com/guim31/gladys-awattar/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-awattar/releases/tag/v1.0.0
